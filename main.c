@@ -1,9 +1,49 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #define SHELL_TOK_BUFSIZE 64
 #define SHELL_TOK_DELIM " \t\r\n\a"
+
+int shell_launch(char **args)
+{
+    pid_t pid;
+    pid_t wpid;
+    int status;
+
+    pid = fork();
+
+    if (pid == 0)
+    {
+        // --- CHILD PROCESS ---
+        // execvp looks up 'args[0]' in PATH and executes it with 'args'
+        if (execvp(args[0], args) == -1)
+        {
+            perror("spook");
+        }
+        exit(EXIT_FAILURE);
+    }
+    else if (pid < 0)
+    {
+        // --- ERROR FORKING ---
+        perror("spook :> fork error");
+    }
+    else
+    {
+        // --- PARENT PROCESS ---
+        // Wait until child process finishes state change
+        do 
+        {
+            wpid = waitpid(pid, &status, WUNTRACED);
+        }
+        while (!WIFEXITED(status) && !WIFSIGNALED(status));
+    }
+
+    return 1; // Return 1 to continue the shell loop to keep runnning
+}
 
 // Split the input line into tokens
 char **shell_split_line(char *line)
